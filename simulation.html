@@ -78,7 +78,7 @@
   <div class="page">
     <header>
       <h1>Overfitting Simulator — Linear Regression with Polynomial Basis</h1>
-      <p class="sub">Use the slider to adjust model complexity (polynomial degree). Fit is trained only on the training set. Click <span class="code">Reveal Test Set</span> to evaluate generalization. Click <span class="code">Generate New Data</span> to refresh the dataset. Error metric: RMSE.</p>
+      <p class="sub">Use the slider to adjust model complexity (polynomial degree). The model is estimated only on the training data. Click <span class="code">Reveal Test Set</span> to evaluate how well the model generalizes. Click <span class="code">Generate New Data</span> to refresh the dataset. Error metric: RMSE.</p>
     </header>
 
     <section class="panel">
@@ -89,7 +89,7 @@
             <input id="degree" type="range" min="1" max="15" value="1" step="1" />
             <div id="degVal" class="badge">1</div>
           </div>
-          <div class="muted">Data remain fixed when you move the slider. Only <em>Generate New Data</em> changes the train/test samples and noise.</div>
+          <div class="muted">Data remain fixed when you move the slider. <em>Generate New Data</em> changes the train/test samples.</div>
         </div>
         <div class="buttons">
           <button id="revealBtn" class="primary">Reveal Test Set</button>
