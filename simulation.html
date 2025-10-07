@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overfitting Simulator for Linear Regression</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- regression-js for polynomial regression calculations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/regression/2.0.1/regression.min.js"></script>
+    
+    <!-- Google Fonts for typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Use the Inter font family */
+        body { 
+            font-family: 'Inter', sans-serif; 
+        }
+        /* Custom styling for slider thumbs for better UX */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #2563eb; /* blue-600 */
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #2563eb;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-7xl">
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Interactive Overfitting Simulator</h1>
+            <p class="mt-2 text-md text-gray-600">A visual tool for understanding model complexity in polynomial regression.</p>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                <!-- Column 1: Controls and Performance Metrics -->
+                <div class="lg:col-span-1 space-y-6">
+                    <h2 class="text-xl font-semibold border-b pb-2 text-gray-800">Simulation Controls</h2>
+                    
+                    <!-- Simplified Data Info -->
+                    <div class="text-sm font-medium text-gray-700 space-y-1">
+                        <p>Total Observations: <span class="font-bold text-blue-600">20</span></p>
+                        <p>Training/Test Split: <span class="font-bold text-blue-600">50% / 50%</span></p>
+                    </div>
+
+                    <!-- Slider 3: Model Complexity (Polynomial Degree) -->
+                    <div>
+                        <label for="polyDegree" class="block text-sm font-medium text-gray-700">Model Complexity (Degree): <span id="polyDegreeValue" class="font-bold text-blue-600">1</span></label>
+                        <input id="polyDegree" type="range" min="1" max="9" value="1" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2">
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex space-x-2 pt-2">
+                        <button id="toggleTestSetBtn" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                            Reveal Test Set
+                        </button>
+                        <button id="regenerateDataBtn" class="w-full bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors duration-200">
+                            New Data
+                        </button>
+                    </div>
+
+                    <!-- Performance Metrics Display -->
+                    <div class="pt-4 space-y-4">
+                         <h2 class="text-xl font-semibold border-b pb-2 text-gray-800">Model Performance (MSE)</h2>
+                         <div class="flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <span class="font-medium text-blue-800">Training Error:</span>
+                            <span id="trainMse" class="font-mono text-lg font-bold text-blue-700">0.00</span>
+                         </div>
+                         <div id="testMseContainer" class="hidden flex justify-between items-center bg-red-50 p-3 rounded-lg border border-red-200">
+                            <span class="font-medium text-red-800">Test Error:</span>
+                            <span id="testMse" class="font-mono text-lg font-bold text-red-700">0.00</span>
+                         </div>
+                         <div id="warningBox" class="hidden mt-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 text-sm rounded-r-lg"></div>
+                    </div>
+
+                    <!-- Instructional Box -->
+                    <div class="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 rounded-r-lg">
+                        <h3 class="font-bold">How to Demonstrate Overfitting:</h3>
+                        <ol class="list-decimal list-inside text-sm mt-1 space-y-1">
+                           <li>Increase the <strong class="font-semibold">Model Complexity</strong> to get the <strong class="font-semibold">Training Error</strong> as low as possible.</li>
+                           <li>You might think you have a perfect model, but you are only looking at the training data.</li>
+                           <li>Click <strong class="font-semibold">'Reveal Test Set'</strong>. Now you see the model's true performance on unseen data. Notice how a low training error can lead to a very high <strong class="font-semibold">Test Error</strong>. This is overfitting!</li>
+                           <li>Use <strong class="font-semibold">'New Data'</strong> to see if your model generalizes well.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Column 2: Chart Visualization -->
+                <div class="lg:col-span-2 min-h-[400px] lg:min-h-0">
+                    <div class="relative w-full h-full p-2 bg-gray-50 rounded-lg border">
+                        <canvas id="regressionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="text-center mt-8 text-sm text-gray-500">
+            <p>A Business Analytics tool for demonstrating statistical concepts.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION CONSTANTS ---
+            const TRUE_FUNCTION = x => 0.01 * x**3 - 0.2 * x**2 + x + 5;
+            const NOISE_LEVEL = 5;
+            const X_MIN = 0;
+            const X_MAX = 20;
+            const NUM_POINTS = 20;
+            const TRAINING_SPLIT_RATIO = 50; // As a percentage
+
+            // --- DOM ELEMENT REFERENCES ---
+            const polyDegreeSlider = document.getElementById('polyDegree');
+            const polyDegreeValue = document.getElementById('polyDegreeValue');
+            const trainMseDisplay = document.getElementById('trainMse');
+            const testMseDisplay = document.getElementById('testMse');
+            const testMseContainer = document.getElementById('testMseContainer');
+            const warningBox = document.getElementById('warningBox');
+            const toggleTestSetBtn = document.getElementById('toggleTestSetBtn');
+            const regenerateDataBtn = document.getElementById('regenerateDataBtn');
+            const ctx = document.getElementById('regressionChart').getContext('2d');
+
+            // --- STATE VARIABLES ---
+            let fullData = [];
+            let isTestSetVisible = false;
+
+            // --- CHART.JS INITIALIZATION ---
+            const regressionChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { type: 'scatter', label: 'Training Data', data: [], backgroundColor: 'rgba(37, 99, 235, 0.7)', pointRadius: 4, pointHoverRadius: 6 },
+                        { type: 'scatter', label: 'Test Data', data: [], backgroundColor: 'rgba(220, 38, 38, 0.7)', pointRadius: 4, pointHoverRadius: 6 },
+                        { type: 'line', label: 'Fitted Model', data: [], borderColor: 'rgba(124, 58, 237, 0.8)', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.4, borderDash: [5, 5] }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Feature (X)' } },
+                        y: { 
+                            title: { display: true, text: 'Target (Y)' },
+                            // The min/max will be set dynamically
+                         }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { enabled: true }
+                    },
+                    animation: { duration: 250 }
+                }
+            });
+
+            // --- CORE SIMULATION LOGIC ---
+
+            /**
+             * Generates a new dataset and stores it in the global state.
+             */
+            function generateAndStoreData() {
+                const data = [];
+                for (let i = 0; i < NUM_POINTS; i++) {
+                    const x = X_MIN + (Math.random() * (X_MAX - X_MIN));
+                    const y = TRUE_FUNCTION(x) + (Math.random() - 0.5) * NOISE_LEVEL;
+                    data.push({ x, y });
+                }
+                fullData = data;
+            }
+
+            /**
+             * Shuffles and splits data into training and testing sets.
+             * @param {Array<Object>} data - The full dataset.
+             * @param {number} splitRatio - The percentage of data to use for training (0-100).
+             * @returns {Object} An object containing trainData and testData arrays.
+             */
+            function splitData(data, splitRatio) {
+                // Fisher-Yates shuffle for unbiased splitting
+                for (let i = data.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [data[i], data[j]] = [data[j], data[i]];
+                }
+                const splitIndex = Math.floor(data.length * (splitRatio / 100));
+                return {
+                    trainData: data.slice(0, splitIndex),
+                    testData: data.slice(splitIndex)
+                };
+            }
+
+            /**
+             * Calculates the Mean Squared Error (MSE) for a given dataset and model.
+             * @param {Object} model - The regression model object.
+             * @param {Array<Object>} data - The dataset to evaluate.
+             * @returns {number} The calculated MSE.
+             */
+            function calculateMse(model, data) {
+                if (!data.length) return 0;
+                const totalError = data.reduce((sum, point) => {
+                    const predictedY = model.predict(point.x)[1];
+                    const error = point.y - predictedY;
+                    return sum + error * error;
+                }, 0);
+                return totalError / data.length;
+            }
+            
+            /**
+             * Updates the model, performance metrics, and chart based on the current state.
+             */
+            function updateModelAndChart() {
+                const polyDegree = parseInt(polyDegreeSlider.value);
+                polyDegreeValue.textContent = polyDegree;
+
+                const { trainData, testData } = splitData([...fullData], TRAINING_SPLIT_RATIO);
+                
+                // Set fixed Y-axis scale based on the full dataset range
+                const yValues = fullData.map(p => p.y);
+                const yMin = Math.min(...yValues);
+                const yMax = Math.max(...yValues);
+                const yPadding = (yMax - yMin) * 0.1; // Add 10% padding
+                regressionChart.options.scales.y.min = yMin - yPadding;
+                regressionChart.options.scales.y.max = yMax + yPadding;
+
+
+                if (trainData.length <= polyDegree) {
+                    warningBox.textContent = `Cannot fit model: Training points (${trainData.length}) must be greater than model degree (${polyDegree}).`;
+                    warningBox.classList.remove('hidden');
+                    trainMseDisplay.textContent = 'N/A';
+                    testMseDisplay.textContent = 'N/A';
+                    // Don't draw a model if it can't be fit
+                    regressionChart.data.datasets[2].data = []; 
+                    regressionChart.update();
+                    return;
+                } else {
+                    warningBox.classList.add('hidden');
+                }
+
+                const trainDataForRegression = trainData.map(p => [p.x, p.y]);
+                const model = regression.polynomial(trainDataForRegression, { order: polyDegree, precision: 5 });
+
+                const trainMse = calculateMse(model, trainData);
+                const testMse = calculateMse(model, testData);
+
+                trainMseDisplay.textContent = trainMse.toFixed(2);
+                testMseDisplay.textContent = testMse.toFixed(2);
+                
+                const fittedModelPoints = [];
+                for (let x = X_MIN; x <= X_MAX; x += 0.2) {
+                    fittedModelPoints.push({ x, y: model.predict(x)[1] });
+                }
+
+                regressionChart.data.datasets[0].data = trainData;
+                regressionChart.data.datasets[1].data = testData;
+                regressionChart.data.datasets[2].data = fittedModelPoints;
+                
+                regressionChart.setDatasetVisibility(1, isTestSetVisible); // Test data is at index 1
+                regressionChart.update();
+            }
+
+            // --- EVENT LISTENERS ---
+            polyDegreeSlider.addEventListener('input', updateModelAndChart);
+
+            regenerateDataBtn.addEventListener('click', () => {
+                generateAndStoreData();
+                updateModelAndChart();
+            });
+
+            toggleTestSetBtn.addEventListener('click', () => {
+                isTestSetVisible = !isTestSetVisible;
+                
+                if (isTestSetVisible) {
+                    toggleTestSetBtn.textContent = 'Hide Test Set';
+                    toggleTestSetBtn.classList.replace('bg-blue-600', 'bg-red-600');
+                    toggleTestSetBtn.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
+                    testMseContainer.classList.remove('hidden');
+                } else {
+                    toggleTestSetBtn.textContent = 'Reveal Test Set';
+                    toggleTestSetBtn.classList.replace('bg-red-600', 'bg-blue-600');
+                    toggleTestSetBtn.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
+                    testMseContainer.classList.add('hidden');
+                }
+                
+                regressionChart.setDatasetVisibility(1, isTestSetVisible);
+                regressionChart.update();
+            });
+
+            // --- INITIAL RUN ---
+            generateAndStoreData();
+            updateModelAndChart();
+        });
+    </script>
+</body>
+</html>
+
