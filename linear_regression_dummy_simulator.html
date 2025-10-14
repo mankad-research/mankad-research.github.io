@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Linear Regression Simulator: Dummy Variables (No Interaction)</title>
+  <title>Linear Regression Simulator: Dummy Variables</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#111822; --muted:#6b7a90; --fg:#e8eef8; --accent:#4da3ff; --accent2:#ffd166;
@@ -117,7 +117,7 @@
       </div>
 
       <div class="footer">
-        Scientifically accurate: Data are generated exactly from the specified linear model with i.i.d. Gaussian errors; OLS uses the design matrix X = [1, X, D] and computes β̂ = (XᵀX)⁻¹ Xᵀy. Residuals shown are y - ŷ (pooled fit).
+        Data are generated exactly from the linear model with i.i.d. Gaussian errors; OLS uses the design matrix X = [1, X, D] and computes β̂ = (XᵀX)⁻¹ Xᵀy. Residuals shown are y - ŷ (pooled fit).
       </div>
     </aside>
 
@@ -157,6 +157,24 @@
   const innerH = height - margin.top - margin.bottom;
   const gx = g.append('g').attr('class','axis x').attr('transform', `translate(0,${innerH})`);
   const gy = g.append('g').attr('class','axis y');
+  // --- AXIS LABELS (INSERT THIS CODE) ---
+    g.append("text")
+        .attr("class", "x-axis-label")
+        .attr("text-anchor", "middle")
+        .attr("x", innerW / 2)
+        .attr("y", innerH + margin.bottom - 10)
+        .style("fill", "var(--muted)")
+        .text("X Variable");
+
+    g.append("text")
+        .attr("class", "y-axis-label")
+        .attr("text-anchor", "middle")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -margin.left + 20)
+        .attr("x", -innerH / 2)
+        .style("fill", "var(--muted)")
+        .text("Y Variable");
+    // ------------------------------------
   const gridY = g.append('g').attr('class','grid');
   const originLayer = g.append('g');
   const points = g.append('g');
@@ -282,6 +300,7 @@
     const x0 = xScale(0), y0 = yScale(0);
     originLayer.append('line').attr('class','origin-line').attr('x1', x0).attr('x2', x0).attr('y1', 0).attr('y2', innerH);
     originLayer.append('line').attr('class','origin-line').attr('x1', 0).attr('x2', innerW).attr('y1', y0).attr('y2', y0);
+
 
     // Scatter points
     const pSel = points.selectAll('circle').data(data);
