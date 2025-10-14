@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Linear Regression Simulator: Dummy Variables (No Interaction)</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#111822; --muted:#6b7a90; --fg:#e8eef8; --accent:#4da3ff; --accent2:#ffd166;
+      --d0:#8ecae6; --d1:#ef476f; --grid:#1a2433; --line0:#219ebc; --line1:#ff6b6b; --ok:#2dc653;
+    }
+    html,body{height:100%;}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:var(--bg);color:var(--fg);}    
+    .wrap{display:grid;grid-template-columns: 380px 1fr; gap:16px; height:100%;}
+    .panel{background:var(--panel); padding:18px 16px 14px; overflow:auto; box-shadow:0 0 0 1px #0e1520 inset;}
+    .h1{font-size:22px; font-weight:700; margin:0 0 6px}
+    .sub{color:var(--muted); font-size:13px; line-height:1.35; margin-bottom:10px}
+    .control{margin:12px 0;}
+    .row{display:flex; align-items:center; gap:10px;}
+    .row > label{width:140px; font-size:13px; color:#b7c3d7}
+    input[type="range"]{width:100%}
+    .value{min-width:70px; text-align:right; font-variant-numeric:tabular-nums; color:#cfe1ff}
+    .checkbox{display:flex; align-items:center; gap:8px; font-size:13px; color:#cfe1ff}
+    .small{font-size:12px; color:var(--muted)}
+    .btn{background:linear-gradient(180deg,#1f2a3a,#152034); color:#eaf2ff; border:1px solid #223049; padding:8px 10px; border-radius:10px; cursor:pointer}
+    .btn:hover{filter:brightness(1.08)}
+    .btn:active{transform:translateY(1px)}
+    .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:#12273f; border:1px solid #1c3354; font-size:11px; color:#b7d3ff}
+
+    .viz{position:relative; padding:10px 10px 2px 2px;}
+    .card{height:100%; background:var(--panel); margin-right:16px; box-shadow:0 0 0 1px #0e1520 inset;}
+    .legend{position:absolute; top:10px; right:16px; background:rgba(10,16,24,.7); border:1px solid #1b2536; padding:8px 10px; border-radius:10px; font-size:12px;}
+    .legend .dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle}
+    .legend .d0{background:var(--d0)}
+    .legend .d1{background:var(--d1)}
+    .legend .l0{background:var(--line0)}
+    .legend .l1{background:var(--line1)}
+
+    .stats{display:grid; grid-template-columns: repeat(4, minmax(140px,1fr)); gap:10px; margin-top:6px}
+    .stat{background:#0f1726; border:1px solid #1b2740; border-radius:12px; padding:10px 12px}
+    .stat h4{margin:0 0 6px; font-size:12px; color:#a8b6cc; font-weight:600}
+    .stat .num{font-variant-numeric:tabular-nums; font-weight:700}
+    .equations{margin-top:8px; background:#0f1726; border:1px solid #1b2740; border-radius:12px; padding:10px 12px; font-size:13px}
+    code{background:#0e1624; border:1px solid #1a2741; padding:2px 6px; border-radius:6px}
+
+    .footer{margin-top:10px; font-size:12px; color:#8ea2c2}
+    a{color:#9ec3ff}
+
+    .resid{stroke:#cbd5e1; stroke-opacity:.35; shape-rendering:crispEdges}
+    .axis path,.axis line{stroke:#25324a}
+    .grid line{stroke:var(--grid)}
+    .origin-line{stroke:#ffd166; stroke-dasharray:3,3; stroke-width:1.5; opacity:0.8}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="panel">
+      <div class="h1">Linear Regression Simulator</div>
+      <div class="sub">Explore how a <strong>dummy (0/1) variable</strong> shifts the regression line. The data are generated from the model
+        <code>Y = β₀ + β₁·X + β₂·D + ε</code> where <code>D ∈ {0,1}</code> and <code>ε ~ Normal(0, σ²)</code>.
+      </div>
+
+      <div class="badge">Model Parameters</div>
+      <div class="control">
+        <div class="row"><label for="b0">Intercept β₀</label>
+          <input type="range" id="b0" min="-10" max="10" step="0.1" value="2">
+          <div class="value" id="b0v">2.0</div>
+        </div>
+        <div class="row"><label for="b1">Slope β₁</label>
+          <input type="range" id="b1" min="-5" max="5" step="0.05" value="1.2">
+          <div class="value" id="b1v">1.20</div>
+        </div>
+        <div class="row"><label for="b2">Dummy effect β₂</label>
+          <input type="range" id="b2" min="-8" max="8" step="0.1" value="-2">
+          <div class="value" id="b2v">-2.0</div>
+        </div>
+      </div>
+
+      <div class="badge">Data-Generating Process</div>
+      <div class="control">
+        <div class="row"><label for="n">Sample size n</label>
+          <input type="range" id="n" min="20" max="600" step="10" value="200">
+          <div class="value" id="nv">200</div>
+        </div>
+        <div class="row"><label for="pD">Pr(D=1)</label>
+          <input type="range" id="pD" min="0" max="1" step="0.01" value="0.5">
+          <div class="value" id="pDv">0.50</div>
+        </div>
+        <div class="row"><label for="sigma">Noise σ</label>
+          <input type="range" id="sigma" min="0" max="6" step="0.05" value="1.5">
+          <div class="value" id="sigv">1.50</div>
+        </div>
+        <div class="row" style="justify-content:space-between; gap:8px; margin-top:8px">
+          <button class="btn" id="resample">Resample Data</button>
+          <div class="small">Random seed: <code id="seedLabel">auto</code></div>
+        </div>
+      </div>
+
+      <div class="badge">Display</div>
+      <div class="control">
+        <div class="checkbox"><input type="checkbox" id="showResiduals" checked> <label for="showResiduals">Show residuals</label></div>
+        <div class="checkbox"><input type="checkbox" id="showOLS" checked> <label for="showOLS">Show OLS estimated lines</label></div>
+        <div class="checkbox"><input type="checkbox" id="lockY"> <label for="lockY">Lock Y-axis (± 3σ around lines)</label></div>
+      </div>
+
+      <div class="equations" id="eqBox">
+        <div><strong>Interpretation:</strong> the dummy shifts the line <em>vertically</em> by β₂: 
+          <code>E[Y|X=x, D=1] - E[Y|X=x, D=0] = β₂</code>. Slopes are equal (β₁).</div>
+      </div>
+
+      <div class="stats" id="stats">
+        <div class="stat"><h4>True model</h4><div class="num" id="trueModel">Y = β₀ + β₁·X + β₂·D + ε</div></div>
+        <div class="stat"><h4>OLS (pooled)</h4><div class="num" id="olsModel">β̂: …</div></div>
+        <div class="stat"><h4>R² (pooled)</h4><div class="num" id="r2">…</div></div>
+        <div class="stat"><h4>Group means</h4><div class="num" id="means">E[Y|D=0], E[Y|D=1]</div></div>
+      </div>
+
+      <div class="footer">
+        Scientifically accurate: Data are generated exactly from the specified linear model with i.i.d. Gaussian errors; OLS uses the design matrix X = [1, X, D] and computes β̂ = (XᵀX)⁻¹ Xᵀy. Residuals shown are y - ŷ (pooled fit).
+      </div>
+    </aside>
+
+    <main class="viz">
+      <div class="legend">
+        <div><span class="dot d0"></span>Points D=0 &nbsp; <span class="dot d1"></span>Points D=1</div>
+        <div style="margin-top:4px"><span class="dot l0"></span>True line D=0 &nbsp; <span class="dot l1"></span>True line D=1</div>
+        <div class="small" style="margin-top:6px">Dashed lines = OLS fits</div>
+      </div>
+      <div class="card" id="plot"></div>
+    </main>
+  </div>
+
+<script>
+(function(){
+  // ---------- Utilities ----------
+  function rng(seed){ let t = seed >>> 0; return function(){ t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t); r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; } }
+  function randn(random){ let u = 0, v = 0; while(u === 0) u = random(); while(v === 0) v = random(); return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v); }
+  const fmt = (x, d=2) => (Math.abs(x)>=1e4 || Math.abs(x)<1e-3) ? x.toExponential(2) : x.toFixed(d);
+
+  // DOM refs
+  const el = id => document.getElementById(id);
+  const b0 = el('b0'), b1 = el('b1'), b2 = el('b2');
+  const b0v = el('b0v'), b1v = el('b1v'), b2v = el('b2v');
+  const n = el('n'), nv = el('nv'), sigma = el('sigma'), sigv = el('sigv'), pD = el('pD'), pDv = el('pDv');
+  const resampleBtn = el('resample');
+  const lockY = el('lockY');
+  const showResiduals = el('showResiduals');
+  const showOLS = el('showOLS');
+  const r2El = el('r2'), meansEl = el('means'), olsModelEl = el('olsModel'), trueModelEl = el('trueModel'), seedLabel = el('seedLabel');
+
+  // D3 plot setup
+  const width = 980, height = 620, margin = {top: 24, right: 24, bottom: 48, left: 64};
+  const svg = d3.select('#plot').append('svg').attr('width', width).attr('height', height);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+  const gx = g.append('g').attr('class','axis x').attr('transform', `translate(0,${innerH})`);
+  const gy = g.append('g').attr('class','axis y');
+  const gridY = g.append('g').attr('class','grid');
+  const originLayer = g.append('g');
+  const points = g.append('g');
+  const residLayer = g.append('g');
+  const lineLayer = g.append('g');
+  const olsLayer = g.append('g');
+
+  const xScale = d3.scaleLinear().range([0, innerW]);
+  const yScale = d3.scaleLinear().range([innerH, 0]);
+
+  const XRANGE = 20; // fixed X range
+
+  let currentSeed = Math.floor(Math.random()*1e9);
+  seedLabel.textContent = 'auto';
+
+  function readParams(){
+    const p = { b0:+b0.value, b1:+b1.value, b2:+b2.value, n:+n.value, sigma:+sigma.value, pD:+pD.value, lockY:lockY.checked, showResiduals:showResiduals.checked, showOLS:showOLS.checked, seed:currentSeed };
+    b0v.textContent = p.b0.toFixed(1); b1v.textContent = p.b1.toFixed(2); b2v.textContent = p.b2.toFixed(1);
+    nv.textContent = p.n; sigv.textContent = p.sigma.toFixed(2); pDv.textContent = p.pD.toFixed(2);
+    trueModelEl.textContent = `Y = ${fmt(p.b0)} + ${fmt(p.b1)}·X + ${fmt(p.b2)}·D + ε`;
+    return p;
+  }
+
+  function generateData(p){
+    const R = rng(p.seed);
+    const data = new Array(p.n);
+    for(let i=0;i<p.n;i++){
+      const x = (R()*2-1)*XRANGE; // uniform over fixed range
+      const D = R() < p.pD ? 1 : 0;
+      const eps = randn(R) * p.sigma;
+      const y = p.b0 + p.b1*x + p.b2*D + eps;
+      data[i] = {x, D, y};
+    }
+    return data;
+  }
+
+  function olsFit(data){
+    const k = 3; // [1, x, D]
+    const XtX = Array.from({length:k},()=>Array(k).fill(0));
+    const XtY = Array(k).fill(0);
+    for(const {x,D,y} of data){
+      const row = [1,x,D];
+      for(let i=0;i<k;i++){
+        XtY[i] += row[i]*y;
+        for(let j=0;j<k;j++) XtX[i][j] += row[i]*row[j];
+      }
+    }
+    const betaHat = solveSymmetric(XtX, XtY);
+    const ybar = d3.mean(data, d=>d.y);
+    let ssTot=0, ssRes=0;
+    for(const d of data){
+      const yhat = betaHat[0] + betaHat[1]*d.x + betaHat[2]*d.D;
+      d.yhat = yhat;
+      ssTot += (d.y - ybar)**2;
+      ssRes += (d.y - yhat)**2;
+    }
+    const r2 = 1 - ssRes/ssTot;
+    return {betaHat, r2};
+  }
+
+  function solveSymmetric(A,b){
+    const n = A.length;
+    const L = Array.from({length:n},()=>Array(n).fill(0));
+    for(let i=0;i<n;i++){
+      for(let j=0;j<=i;j++){
+        let sum = 0;
+        for(let k=0;k<j;k++) sum += L[i][k]*L[j][k];
+        if(i===j){
+          const val = A[i][i] - sum;
+          L[i][j] = val>0 ? Math.sqrt(val) : 0;
+        } else {
+          L[i][j] = (A[i][j] - sum)/L[j][j];
+        }
+      }
+    }
+    // Ly=b
+    const y = Array(n).fill(0);
+    for(let i=0;i<n;i++){
+      let s = b[i]; for(let k=0;k<i;k++) s -= L[i][k]*y[k];
+      y[i] = s / L[i][i];
+    }
+    // Lᵀx=y
+    const x = Array(n).fill(0);
+    for(let i=n-1;i>=0;i--){
+      let s = y[i]; for(let k=i+1;k<n;k++) s -= L[k][i]*x[k];
+      x[i] = s / L[i][i];
+    }
+    return x;
+  }
+
+  function update(){
+    const p = readParams();
+    const data = generateData(p);
+
+    // Scales
+    const xmin = -XRANGE, xmax = XRANGE;
+    xScale.domain([xmin, xmax]).nice();
+
+    // Determine y domain
+    const trueY = x => ({ d0: p.b0 + p.b1*x, d1: p.b0 + p.b1*x + p.b2 });
+    let ymin, ymax;
+    if(p.lockY){
+      const ys = [trueY(xmin).d0, trueY(xmax).d0, trueY(xmin).d1, trueY(xmax).d1];
+      const minTrue = Math.min(...ys), maxTrue = Math.max(...ys);
+      ymin = minTrue - 3*p.sigma; ymax = maxTrue + 3*p.sigma;
+    } else {
+      const yvals = data.map(d=>d.y);
+      ymin = d3.min(yvals); ymax = d3.max(yvals);
+      const pad = 0.08 * (ymax - ymin || 1);
+      ymin -= pad; ymax += pad;
+    }
+    // Ensure 0 is visible for origin lines
+    ymin = Math.min(ymin, 0); ymax = Math.max(ymax, 0);
+    yScale.domain([ymin, ymax]).nice();
+
+    // Axes & grid
+    gx.call(d3.axisBottom(xScale));
+    gy.call(d3.axisLeft(yScale));
+    gridY.call(d3.axisLeft(yScale).tickSize(-innerW).tickFormat(''));
+
+    // Origin lines at (0,0)
+    originLayer.selectAll('*').remove();
+    const x0 = xScale(0), y0 = yScale(0);
+    originLayer.append('line').attr('class','origin-line').attr('x1', x0).attr('x2', x0).attr('y1', 0).attr('y2', innerH);
+    originLayer.append('line').attr('class','origin-line').attr('x1', 0).attr('x2', innerW).attr('y1', y0).attr('y2', y0);
+
+    // Scatter points
+    const pSel = points.selectAll('circle').data(data);
+    pSel.join('circle')
+      .attr('cx', d=>xScale(d.x))
+      .attr('cy', d=>yScale(d.y))
+      .attr('r', 3.0)
+      .attr('fill', d=> d.D? 'var(--d1)' : 'var(--d0)')
+      .attr('opacity', 0.9);
+
+    // True lines
+    const line = d3.line().x(d=>xScale(d.x)).y(d=>yScale(d.y));
+    const xs = d3.range(xmin, xmax+1e-9, (xmax-xmin)/200);
+    const d0line = xs.map(x=>({x, y: trueY(x).d0}));
+    const d1line = xs.map(x=>({x, y: trueY(x).d1}));
+    const tl = lineLayer.selectAll('path.true').data([
+      {path:d0line, cls:'true d0'},
+      {path:d1line, cls:'true d1'}
+    ]);
+    tl.join('path')
+      .attr('class', d=>d.cls)
+      .attr('d', d=>line(d.path))
+      .attr('fill','none')
+      .attr('stroke', (d,i)=> i? 'var(--line1)':'var(--line0)')
+      .attr('stroke-width', 2.5);
+
+    // OLS fit (pooled model with D only)
+    const {betaHat, r2} = olsFit(data);
+    r2El.textContent = fmt(r2,3);
+    const labels = ['β̂₀','β̂₁','β̂₂'];
+    olsModelEl.textContent = labels.map((lab,i)=> `${lab}=${fmt(betaHat[i])}`).join('  ');
+
+    // Group means
+    const meanY0 = d3.mean(data.filter(d=>d.D===0), d=>d.y);
+    const meanY1 = d3.mean(data.filter(d=>d.D===1), d=>d.y);
+    meansEl.textContent = `D=0: ${fmt(meanY0)}   D=1: ${fmt(meanY1)}`;
+
+    // OLS lines
+    olsLayer.selectAll('*').remove();
+    if(p.showOLS){
+      const f0 = x => (betaHat[0] + betaHat[1]*x);
+      const f1 = x => (betaHat[0] + betaHat[1]*x + betaHat[2]);
+      const d0hat = xs.map(x=>({x, y:f0(x)}));
+      const d1hat = xs.map(x=>({x, y:f1(x)}));
+      olsLayer.append('path').attr('d', line(d0hat)).attr('fill','none').attr('stroke','var(--line0)').attr('stroke-dasharray','6,6').attr('stroke-width',2);
+      olsLayer.append('path').attr('d', line(d1hat)).attr('fill','none').attr('stroke','var(--line1)').attr('stroke-dasharray','6,6').attr('stroke-width',2);
+    }
+
+    // Residuals
+    residLayer.selectAll('*').remove();
+    if(p.showResiduals){
+      residLayer.selectAll('line').data(data).join('line')
+        .attr('class','resid')
+        .attr('x1', d=>xScale(d.x))
+        .attr('x2', d=>xScale(d.x))
+        .attr('y1', d=>yScale(d.y))
+        .attr('y2', d=>yScale(d.yhat));
+    }
+  }
+
+  // Interactions (UI events)
+  [b0,b1,b2,n,sigma,pD, lockY, showResiduals, showOLS].forEach(inp=>{ inp.addEventListener('input', update); });
+  resampleBtn.addEventListener('click', ()=>{ currentSeed = Math.floor(Math.random()*1e9); seedLabel.textContent = 'auto'; update(); });
+
+  // Optional: set ?seed=123 for reproducibility
+  const params = new URLSearchParams(location.search);
+  if(params.has('seed')){
+    const s = +params.get('seed');
+    if(Number.isFinite(s)) { currentSeed = s; seedLabel.textContent = s; }
+  }
+
+  // Initial draw
+  update();
+})();
+</script>
+</body>
+</html>
